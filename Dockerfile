@@ -10,6 +10,7 @@ COPY . .
 RUN npm install --force
 # Build the app
 RUN npm run build
+
 # ==== RUN =======
 # Set the env to "production"
 ENV NODE_ENV production
