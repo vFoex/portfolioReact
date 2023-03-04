@@ -1,0 +1,178 @@
+
+// --------------------------------------------------
+
+//@version=4
+study("A", shorttitle="A", overlay=true)
+
+
+// --------------------------------------------------
+// Function: Get X Moving Average
+// --------------------------------------------------
+fct_xMA(source, type, length) =>
+    if type == "SMA"
+        sma(source, length)
+    else if type == "EMA"
+        ema(source, length)
+    else if type == "WMA"
+        wma(source, length)
+
+
+
+// --------------------------------------------------
+// Function: Compound Ratio Weight MA
+// --------------------------------------------------
+// Compound Ratio Weight MA function
+// Compound Ratio Weight is where the weight increases in a "logarithmicly linear" way (i.e., linear when plotted on a log chart) - similar to compound ratio
+// the "step ratio" between weights is consistent - that's not the case with linear-weight moving average (WMA), or EMA 
+// another advantage is we can significantly reduce the "tail weight" - which is "relatively" large in other MAs and contributes to lag
+//
+// Compound Weight ratio r = (A/P)^1/t - 1
+// Weight at time t A = P(1 + r)^t 
+// = Start_val * (1 + r) ^ index
+// Note: index is 0 at the furthest point back -- num periods = length -1
+// --------------------------------------------------
+fct_CompoundRatioWeight(source, length, start_wt, multiplier) =>
+    numerator = 0.0
+    denom = 0.0
+    c_weight = 0.0
+    //start_wt = 1.0 // Start Wight is an input in this version - can also be set to a basic value here.
+    end_wt = length // use length as initial End Weight to calculate base "r"
+    r = pow((end_wt / start_wt),(1 / (length - 1))) - 1
+    base = 1 + r * multiplier
+    for i = 0 to length -1
+        c_weight := start_wt * pow(base,(length - i))
+        numerator := numerator + source[i] * c_weight 
+        denom := denom + c_weight
+    numerator / denom
+
+
+
+// --------------------------------------------------
+// Function: Compound Ratio Moving Average Ribbon Calculator
+// --------------------------------------------------
+fct_CoRAWave_Calculate (smoothing_auto, MA_Type, length, smoothing_manual, source, multiplier) =>
+    s = smoothing_auto ? max(round(sqrt(length)),1) : smoothing_manual
+    CoRA_raw = fct_CompoundRatioWeight(source, length, 0.01, multiplier) 
+    CoRA_ribbon = fct_xMA(CoRA_raw, MA_Type, s)
+    CoRA_ribbon
+
+
+
+// --------------------------------------------------
+// Settings
+// --------------------------------------------------
+CoRa_Set_multiplier = input(title="Compound Ratio Multiplier",type=input.float, defval=2.0, minval=0, step =.1, group="General")
+CoRa_Set_smoothing_auto = input(title="Auto Smoothing", type=input.bool, defval=true, group="General")
+CoRa_Set_smoothing_manual = input(title="Manual Smoothing", type=input.integer, defval=1, minval=1, step=1, group="General")
+
+CoRa_Set_MA_Type = input(title="Moving Average Type", type=input.string, defval="WMA", options=["EMA", "SMA", "WMA"], tooltip="By using a different moving average, the compound ratio weight is correspondingly smoothed differently, which can be an advantage in some cases. Default: WMA", group="General")
+
+// # SETTINGS for Waves
+CoRa_Set_Wave_1_Visible = input(title="", type=input.bool, defval=true, inline="W1", group="Waves")
+CoRa_Set_Wave_1_Source = input(title="Wave 1:", type=input.source, defval=close, inline="W1", group="Waves")
+CoRa_Set_Wave_1_Length = input(title="Length", type=input.integer, defval=20, minval=2, inline="W1", group="Waves")
+
+CoRa_Set_Wave_2_Visible = input(title="", type=input.bool, defval=true, inline="W2", group="Waves")
+CoRa_Set_Wave_2_Source = input(title="Wave 2:", type=input.source, defval=close, inline="W2", group="Waves")
+CoRa_Set_Wave_2_Length = input(title="Length", type=input.integer, defval=30, minval=2, inline="W2", group="Waves")
+
+
+// # SETTINGS for Bands
+CoRa_Set_Band_1_Visible = input(title="Ribbon 1 (between Wave 1 and 2)", type=input.bool, defval=false, inline="R1", tooltip="The background color of the ribbon changes as soon as both waves point in the same direction. If only one wave changes direction while the other stays in its previous direction, no change in direction of the ribbon will be indicated", group="Ribbons")
+
+
+// --------------------------------------------------
+// Values & Signals
+// --------------------------------------------------
+
+// Calculate the CoRA waves
+var float CoRAWave_Signal_1_Value = 0.0
+var float CoRAWave_Signal_2_Value = 0.0
+
+CoRAWave_Signal_1_Value := fct_CoRAWave_Calculate(CoRa_Set_smoothing_manual, CoRa_Set_MA_Type, CoRa_Set_Wave_1_Length, CoRa_Set_smoothing_manual, CoRa_Set_Wave_1_Source, CoRa_Set_multiplier)
+CoRAWave_Signal_2_Value := fct_CoRAWave_Calculate(CoRa_Set_smoothing_manual, CoRa_Set_MA_Type, CoRa_Set_Wave_2_Length, CoRa_Set_smoothing_manual, CoRa_Set_Wave_2_Source, CoRa_Set_multiplier)
+
+// Identify the direction of each wave
+var int CoRAWave_Signal_1_Direction = 0
+var int CoRAWave_Signal_2_Direction = 0
+
+CoRAWave_Signal_1_Direction := CoRAWave_Signal_1_Value == CoRAWave_Signal_1_Value[1] ? CoRAWave_Signal_1_Direction : CoRAWave_Signal_1_Value > CoRAWave_Signal_1_Value[1] ? 1 : -1  // if direction not changed, we keep the direction. otherwise we update it.
+CoRAWave_Signal_2_Direction := CoRAWave_Signal_2_Value == CoRAWave_Signal_2_Value[1] ? CoRAWave_Signal_2_Direction : CoRAWave_Signal_2_Value > CoRAWave_Signal_2_Value[1] ? 1 : -1
+
+// # Direction of Ribbon 1 (Wave 1 - 2)
+var int CoRA_Sig_Ribbon_1_Direction = 0
+CoRA_Sig_Ribbon_1_Direction := 
+     CoRAWave_Signal_1_Direction == CoRAWave_Signal_2_Direction ?
+         CoRAWave_Signal_1_Direction > 0 ? 1 : -1
+     : CoRA_Sig_Ribbon_1_Direction
+CoRA_Sig_Ribbon_1_DirectionChange = CoRA_Sig_Ribbon_1_Direction != CoRA_Sig_Ribbon_1_Direction[1]
+
+
+
+// --------------------------------------------------
+// Plotting
+// --------------------------------------------------
+color_uptrend = color.new(#4caf50, 0)
+color_downtrend = color.new(#c2185b, 0)
+color_fill_uptrend = color.new(#4caf50, 70)
+color_fill_downtrend = color.new(#c2185b, 70)
+
+// Waves
+CoRA_Plot_1 = plot(CoRa_Set_Wave_1_Visible ? CoRAWave_Signal_1_Value : na, title="Wave 1", color = CoRAWave_Signal_1_Direction > 0 ? color_uptrend : color_downtrend, linewidth=2, display=display.all)
+CoRA_Plot_2 = plot(CoRa_Set_Wave_2_Visible ? CoRAWave_Signal_2_Value : na, title="Wave 2", color = CoRAWave_Signal_2_Direction > 0 ? color_uptrend : color_downtrend, linewidth=2, display=display.all)
+
+//Color for Ribbon 1 (Wave 1 - 2)
+CoRA_temp_Band1_ColorFill =
+     CoRa_Set_Band_1_Visible ? 
+         CoRA_Sig_Ribbon_1_Direction > 0 ? color_fill_uptrend : 
+         CoRA_Sig_Ribbon_1_Direction < 0 ? color_fill_downtrend : 
+         na 
+     : na
+fill(CoRA_Plot_1, CoRA_Plot_2, color=CoRA_temp_Band1_ColorFill, title="Ribbon 1 (Wave 1 - 2): Background")
+
+
+
+// Shapes
+plotshape(CoRA_Sig_Ribbon_1_DirectionChange and CoRA_Sig_Ribbon_1_Direction > 0, title="Ribbon 1 (Wave 1 - 2): bullish", style=shape.square, location=location.abovebar, color=color_uptrend, size=size.tiny, display=display.none)
+plotshape(CoRA_Sig_Ribbon_1_DirectionChange and CoRA_Sig_Ribbon_1_Direction < 0, title="Ribbon 1 (Wave 1 - 2): bearish", style=shape.square, location=location.belowbar, color=color_downtrend, size=size.tiny, display=display.none)
+
+
+// --------------------------------------------------
+// EOF
+// --------------------------------------------------
+
+var stopVal = 0.0
+l = lowest(2)
+var achat = 0
+var minVal = 0.0
+var canPurchase = 1
+
+
+
+if (CoRA_Sig_Ribbon_1_Direction > 0)
+    if(achat == 0 and canPurchase == 1)
+        achat := 1
+        minVal := close*0.9995
+        canPurchase := 0
+else
+    if(canPurchase == 0 and achat == 0)
+        canPurchase := 1
+    
+    if(achat == 1)
+        achat := 0
+        stopVal := 0
+        minVal := 0
+        canPurchase := 1
+        
+if (achat == 1 and canPurchase == 0)
+    
+    stopVal := ((stopVal > close*0.998) and (stopVal != 0)) ? stopVal : ((close*0.999 > minVal) ? close*0.998 : minVal)
+
+    if(close < stopVal or close < minVal)
+        achat := 0
+        stopVal := 0
+        minVal := 0
+
+plot(minVal, color=color.yellow, title="minVal")
+plot(stopVal, color=color.purple, title="stopVal")
+plot(achat, title="achat")
