@@ -16,14 +16,14 @@ jobs:
       - name: Login to DockerHub
         run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build image
-        run: docker build -f ./Dockerfile --pull -t built-image-name .
-
-      - name: Tag image
-        run: docker tag built-image-name "portfolio-vfoex/built-image-name:latest"
-
-      - name: Push image
-        run: docker push "portfolio-vfoex/built-image-name:latest"
+      - name: Build image and push backend
+          uses: docker/build-push-action@v3
+          with:
+            context: ./
+            # Note: tags has to be all lower-case
+            tags: ${{secrets.DOCKERHUB_USERNAME}}/portfolio
+            # build on feature branches, push only on main branch
+            push: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Deploy to CapRover
-        run: docker run caprover/cli-caprover:v2.1.1 caprover deploy --caproverUrl ${{ secrets.CAPROVER_URL }} --caproverPassword ${{ secrets.CAPROVER_PASSWORD }} --caproverApp ${{ secrets.CAPROVER_APP }} --imageName "portfolio-vfoex/built-image-name:latest"
+        run: docker run caprover/cli-caprover:v2.1.1 caprover deploy --caproverUrl ${{ secrets.CAPROVER_URL }} --caproverPassword ${{ secrets.CAPROVER_PASSWORD }} --caproverApp ${{ secrets.CAPROVER_APP }} --imageName "${{secrets.DOCKERHUB_USERNAME}}/portfolio"
