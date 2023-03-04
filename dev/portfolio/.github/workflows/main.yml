@@ -1,0 +1,29 @@
+name: build-and-deploy-to-caprover
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build-and-deploy-to-caprover:
+    # run only when code is compiling and tests are passing
+    runs-on: ubuntu-22.04
+    environment: DOCKERHUB
+    # steps to perform in job
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2.5.0
+
+      - name: Login to DockerHub
+        run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build image
+        run: docker build -f ./Dockerfile --pull -t built-image-name .
+
+      - name: Tag image
+        run: docker tag built-image-name "portfolio-vfoex/built-image-name:latest"
+
+      - name: Push image
+        run: docker push "portfolio-vfoex/built-image-name:latest"
+
+      - name: Deploy to CapRover
+        run: docker run caprover/cli-caprover:v2.1.1 caprover deploy --caproverUrl ${{ secrets.CAPROVER_URL }} --caproverPassword ${{ secrets.CAPROVER_PASSWORD }} --caproverApp ${{ secrets.CAPROVER_APP }} --imageName "portfolio-vfoex/built-image-name:latest"
