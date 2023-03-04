@@ -19,7 +19,6 @@ jobs:
       - name: Build image and push backend
           uses: docker/build-push-action@v3
           with:
-            context: ./
             # Note: tags has to be all lower-case
             tags: ${{secrets.DOCKERHUB_USERNAME}}/portfolio
             # build on feature branches, push only on main branch
