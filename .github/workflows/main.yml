@@ -7,7 +7,7 @@ jobs:
   build-and-deploy-to-caprover:
     # run only when code is compiling and tests are passing
     runs-on: ubuntu-22.04
-    environment: DOCKERHUB
+    environment: production
     # steps to perform in job
     steps:
       - name: Checkout code
