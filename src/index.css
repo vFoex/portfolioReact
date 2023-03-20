@@ -5,7 +5,6 @@
 .btn {
   background: linear-gradient(
     92.23deg,
-    #4E31AA 50.63%,
     #2F58CD 100%,
     #3795BD 117.04%
   );
@@ -15,7 +14,6 @@
 .btn:hover {
   background: linear-gradient(
     92.23deg,
-    #4E31AA 50.63%,
     #2F58CD 100%,
     #3795BD 117.04%
   );
@@ -25,7 +23,6 @@
 .active {
   background: linear-gradient(
     92.23deg,
-    #4E31AA 50.63%,
     #2F58CD 100%,
     #3795BD 117.04%
   );

@@ -3,6 +3,7 @@ import { FaGithub, FaLinkedin } from 'react-icons/fa';
 import {TypeAnimation} from "react-type-animation";
 import {motion} from "framer-motion";
 import {fadeIn} from "../variants";
+import {Link} from 'react-scroll';
 
 const Banner = () => {
   return <section className='section flex items-center' id='home'>
@@ -49,7 +50,11 @@ const Banner = () => {
             whileInView={'show'}
             viewport={{once: true, amount: 0.7}}
             className='flex max-w-max items-center mb-12 mx-auto lg:mx-0'>
-          <button className='btn btn-lg'>Contact Me</button>
+          <Link className='btn btn-lg flex items-center cursor-pointer'
+                to='contact'
+                activeClass='active'
+                smooth={true}
+                spy={true}>Contact Me</Link>
         </motion.div>
         <motion.div
             variants={fadeIn('up', 0.35)}
