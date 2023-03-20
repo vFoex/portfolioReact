@@ -4,7 +4,7 @@ import pokegeo from "../../assets/pokegeo.png";
 
 export const projects = [
     {
-        name: "TradingBot Binance - Personnal",
+        name: "TradingBot Binance - Personal",
         description:
             "A crypto trading bot that uses the Binance API to trade on the Binance exchange. The backend of the bot is hosted on a VPS and is currently working automatically. The front of the bot is currently in development and is not yet available for public use.",
         tags: [
